@@ -44,10 +44,13 @@ bench-router-A via SFTP (REST /tool fetch cannot write .npk — filesystem restr
    file bytes on download.
 3. Package sync from upgrade.mikrotik.com (stable + long-term, all arches).
 
-## Cleanup owed on test devices
-- bench-router-A: remove uploaded smips .npk + lu.pcap, (optionally) revert test user to
-  write group, stop/clear sniffer config.
-- bench-router-B: remove update-package-source entry.
+## Test-device cleanup (2026-10-01)
+- bench-router-A: done. Sniffer restored to its original settings and stopped, uploaded smips
+  .npk files and lu.pcap removed. The `test` user is still in group full (raised by the
+  owner for the tests; reverting it is the owner's call).
+- bench-router-B / bench-router-C: not touched. The test login stopped working on both during cleanup,
+  so what is left there is for the owner: bench-router-B's update-package-source (-> the mirror)
+  and any leftover npk files. bench-router-C's package source was configured by the owner.
 - Windows host: proxy stopped; firewall rule attempt did not persist.
 
 ## DONE: Go server end-to-end working (2026-10-01)
@@ -82,7 +85,16 @@ verified against live bench-router-B:
   or HTTP(S)_PROXY). MikroTik CDN resets large downloads often, so resume is needed.
 - `cmd/mirror-push`: downloads locally (fast link / proxy) and SFTPs to the server
   with atomic swap — for servers whose own link to MikroTik is slow (e.g. a cloud VPS).
-- Deployed to mirror.example.com: /opt/mikrotik-mirror, systemd unit, --no-sync.
+- Deployed to mirror.example.com: /opt/mikrotik-mirror, systemd unit.
   deploy/ has the unit file + instructions.
-- NOTE: run the server with --no-sync when using mirror-push; otherwise the server's
-  own syncer and the push race and can blank the directory.
+- The server never downloads anything (sync code removed from it); packages are pushed
+  with push-mirror.bat / push-mirror.ps1 from the owner's PC.
+
+## VERIFIED end to end (2026-10-01)
+- smips hAP mini (bench-router-B) upgraded 7.20.7 -> 7.23.7 (long-term) through the public mirror
+  on the public mirror server, account longterm/longterm: LIST, download of the main routeros package
+  (7195756 B) and wireless (684177 B), install on reboot.
+- x86 CHR (192.168.1.3): lists x86 packages and flags exactly its installed set
+  (container, routeros, user-manager) as installed. Required arch label "i386".
+- Router retries a download from scratch when the connection drops; restarting the
+  server mid-download only costs a retry.

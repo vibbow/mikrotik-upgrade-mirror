@@ -1,8 +1,8 @@
-// Package sync keeps the local package directories mirrored from MikroTik's
-// official download servers. For each channel it reads the NEWESTa7.<channel>
-// version file, and if the local copy is behind, downloads the all_packages zip
-// for every configured architecture, extracts the .npk files into the channel
-// directory, and removes any packages from older versions ("keep latest only").
+// Package sync downloads RouterOS packages from MikroTik's official servers. For a
+// channel it reads the NEWESTa7.<channel> version file, then fetches, for every
+// architecture, the all_packages zip (extra packages) and the separate main system
+// package. It only downloads; deciding where the files go is up to the caller
+// (mirror-push uploads them to the mirror server).
 package sync
 
 import (
@@ -29,29 +29,16 @@ const (
 // DefaultArches are all RouterOS v7 CPU architectures.
 var DefaultArches = []string{"arm", "arm64", "mipsbe", "mmips", "smips", "tile", "ppc", "x86"}
 
-type Channel struct {
-	Name string // "stable" or "long-term"
-	Dir  string // local directory for this channel's packages
-}
-
 type Syncer struct {
-	Channels []Channel
-	Arches   []string
-	Interval time.Duration
-	Client   *http.Client
-	// VersionFile records the version currently materialized in each dir.
-	marker func(dir string) string
+	Arches []string
+	Client *http.Client
 }
 
-func New(channels []Channel, arches []string, interval time.Duration) *Syncer {
-	return NewWithProxy(channels, arches, interval, "")
-}
-
-// NewWithProxy builds a Syncer whose downloads go through the given proxy.
+// New builds a Syncer whose downloads go through the given proxy.
 // proxy may be "http://host:port", "https://host:port", "socks5://host:port",
 // or a bare "host:port" (treated as http). Empty string falls back to the
-// standard HTTP_PROXY/HTTPS_PROXY environment variables.
-func NewWithProxy(channels []Channel, arches []string, interval time.Duration, proxy string) *Syncer {
+// standard HTTP_PROXY/HTTPS_PROXY environment variables. No arches means all.
+func New(arches []string, proxy string) *Syncer {
 	if len(arches) == 0 {
 		arches = DefaultArches
 	}
@@ -68,40 +55,10 @@ func NewWithProxy(channels []Channel, arches []string, interval time.Duration, p
 		}
 	}
 	return &Syncer{
-		Channels: channels,
-		Arches:   arches,
-		Interval: interval,
+		Arches: arches,
 		// No overall client timeout: a slow 50MB download is normal. Each attempt
 		// gets its own deadline via context in getWithRetry instead.
 		Client: &http.Client{Transport: tr},
-		marker: func(dir string) string { return filepath.Join(dir, ".version") },
-	}
-}
-
-// Run does an initial sync then repeats on the interval until ctx-like stop.
-func (s *Syncer) Run(stop <-chan struct{}) {
-	s.SyncOnce()
-	if s.Interval <= 0 {
-		return
-	}
-	t := time.NewTicker(s.Interval)
-	defer t.Stop()
-	for {
-		select {
-		case <-stop:
-			return
-		case <-t.C:
-			s.SyncOnce()
-		}
-	}
-}
-
-// SyncOnce checks and updates every channel once.
-func (s *Syncer) SyncOnce() {
-	for _, ch := range s.Channels {
-		if err := s.syncChannel(ch); err != nil {
-			log.Printf("sync %s: %v", ch.Name, err)
-		}
 	}
 }
 
@@ -130,53 +87,6 @@ func (s *Syncer) FetchInto(channel, version, dstDir string) (int, error) {
 		return total, err
 	}
 	return total, nil
-}
-
-func (s *Syncer) syncChannel(ch Channel) error {
-	latest, err := s.latestVersion(ch.Name)
-	if err != nil {
-		return err
-	}
-	cur := s.currentVersion(ch.Dir)
-	if cur == latest {
-		log.Printf("sync %s: up to date (%s)", ch.Name, latest)
-		return nil
-	}
-	log.Printf("sync %s: %s -> %s, downloading %d arches", ch.Name, orNone(cur), latest, len(s.Arches))
-
-	if err := os.MkdirAll(ch.Dir, 0o755); err != nil {
-		return err
-	}
-	tmp := ch.Dir + ".new"
-	os.RemoveAll(tmp)
-	if err := os.MkdirAll(tmp, 0o755); err != nil {
-		return err
-	}
-
-	for _, arch := range s.Arches {
-		if _, err := s.fetchArchN(latest, arch, tmp); err != nil {
-			os.RemoveAll(tmp)
-			return fmt.Errorf("arch %s: %w", arch, err)
-		}
-	}
-	// write version marker, then atomically swap directories
-	if err := os.WriteFile(filepath.Join(tmp, ".version"), []byte(latest), 0o644); err != nil {
-		os.RemoveAll(tmp)
-		return err
-	}
-	old := ch.Dir + ".old"
-	os.RemoveAll(old)
-	if err := os.Rename(ch.Dir, old); err != nil && !os.IsNotExist(err) {
-		os.RemoveAll(tmp)
-		return err
-	}
-	if err := os.Rename(tmp, ch.Dir); err != nil {
-		os.Rename(old, ch.Dir) // try to restore
-		return err
-	}
-	os.RemoveAll(old)
-	log.Printf("sync %s: now at %s", ch.Name, latest)
-	return nil
 }
 
 func (s *Syncer) latestVersion(channel string) (string, error) {
@@ -269,14 +179,6 @@ func (s *Syncer) getWithRetry(url string, maxStalls int) ([]byte, error) {
 	return nil, fmt.Errorf("after %d stalled attempts: %w", maxStalls, lastErr)
 }
 
-func (s *Syncer) currentVersion(dir string) string {
-	b, err := os.ReadFile(filepath.Join(dir, ".version"))
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(b))
-}
-
 func (s *Syncer) fetchArchN(version, arch, dstDir string) (int, error) {
 	url := fmt.Sprintf(zipURLFmt, version, arch, version)
 	data, err := s.getWithRetry(url, 8)
@@ -339,11 +241,4 @@ func extractFile(f *zip.File, dstDir string) error {
 	defer w.Close()
 	_, err = io.Copy(w, rc)
 	return err
-}
-
-func orNone(s string) string {
-	if s == "" {
-		return "(none)"
-	}
-	return s
 }

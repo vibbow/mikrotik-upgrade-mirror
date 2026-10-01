@@ -42,8 +42,18 @@ SYS_TO    0xff0001 = [72, 2]
 | 0x64 | string | **package name** | `system`, `wireless`, `container`, `rose-storage` |
 | 0x65 | string | **version** | `7.24.4` |
 | 0x6b | string | **architecture** | `smips`, `arm64` |
-| 0x66 | u32 | build id | 1789558341 |
-| 0x67 | u32 | ? (same for all pkgs) | 119039492 |
+| 0x66 | u32 | package build time (unix) | 1789558341 |
+| 0x67 | u32 | **numeric version — what the router displays** | 119039492 = 0x07186604 = 7.24.4 |
+
+`0x67 = major<<24 | minor<<16 | 0x66<<8 | patch`. The router shows this, NOT the 0x65
+string: a server that hardcoded the 7.24.4 value displayed every package as 7.24.4
+(and the router then named the local file for 7.24.4 while downloading the file the
+server named). Our first notes called it a constant only because every capture was 7.24.4.
+
+`0x6b` architecture must equal the label inside the .npk header, which is what the
+router matches against its own architecture: smips, arm64, ... and **`i386` for x86**
+(x86 files have no arch suffix in their file name; CHR reports architecture-name x86_64
+but matches `i386`). With any other label the router lists nothing for that arch.
 | 0xfe0001 | u32 | object id | |
 | 0xfe0010 | string | std name (= path) | |
 
@@ -99,8 +109,9 @@ Nothing else is needed for refresh + download.
 
 ## Still cosmetic/unknown (safe to stub)
 - 0xff001c "msg-proxy-<ver>" str_array — appears empty on wire; likely optional.
-- 0x66 build-id / 0x67 constant / 0x04 timestamps / 0xfe0001 object ids — provide
-  plausible values; client filters on type/arch/version only.
+- 0x04 timestamps / 0xfe0001 object ids — plausible values are enough.
+  (0x66 is filled from the file mtime; installed/available detection still matched
+  the router's real package set on both smips and x86 devices.)
 - After download the client needs a reboot to install; .npk signature is checked
   by the client, so the mirror can only serve genuine MikroTik packages.
 

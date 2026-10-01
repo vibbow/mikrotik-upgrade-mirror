@@ -12,8 +12,11 @@ Two binaries:
 
 | binary | runs where | does what |
 |--------|-----------|-----------|
-| `mikrotik-mirror` | the mirror server | serves packages to routers over Winbox 8291; optionally self-syncs from MikroTik |
-| `mirror-push` | your workstation | downloads packages locally (fast link) and pushes them to the server over SFTP |
+| `mikrotik-mirror` | the mirror server | serves packages to routers over Winbox 8291. It never downloads anything itself |
+| `mirror-push` | your workstation | downloads packages locally (fast link / proxy) and pushes them to the server over SFTP |
+
+**Updating the mirror:** double-click `push-mirror.bat` (or run `push-mirror.ps1`). It
+downloads the latest stable + long-term packages on your machine and uploads them.
 
 ## How clients pick a channel
 
@@ -39,34 +42,39 @@ A wrong password shows up in the server log as "client confirmation mismatch".
 mikrotik-mirror \
   --listen 0.0.0.0:8291 \
   --stable-dir  /opt/mikrotik-mirror/packages/stable \
-  --longterm-dir /opt/mikrotik-mirror/packages/long-term \
-  [--no-sync | --sync-interval 6h] \
-  [--proxy http://host:port] \
-  [--arches arm,arm64,mipsbe,mmips,smips,tile,ppc,x86]
+  --longterm-dir /opt/mikrotik-mirror/packages/long-term
 ```
 
-- With self-sync (default), it downloads the latest stable + long-term packages
-  for every architecture from MikroTik on startup and every `--sync-interval`.
-- With `--no-sync`, it only serves whatever is already in the package dirs — use
-  this when you push packages with `mirror-push` instead.
-- Keeps only the **latest** version per channel.
+It serves whatever is in those two directories (re-read on every request, so a push
+takes effect immediately, no restart). Only the **latest** version per channel is kept.
 
-## Push from a fast network
+## Pushing packages
 
-If the server's link to MikroTik is slow, download on a machine that has a fast
-link (optionally through a proxy) and push over SSH:
+`push-mirror.bat` / `push-mirror.ps1` wraps `mirror-push`. Edit the settings block at the
+top of `push-mirror.ps1` (server, user, remote dir, proxy), then:
 
 ```
-mirror-push \
-  --host your-server --user root \
-  --remote-dir /opt/mikrotik-mirror/packages \
-  --channels stable,long-term \
-  --proxy http://127.0.0.1:7890
+push-mirror.bat              # both channels; skips a channel that is already current
+push-mirror.bat -Force       # re-download and re-upload anyway
+push-mirror.bat -Channels stable
 ```
 
-Downloads resume automatically if the CDN drops the connection. Uploads are swapped
-into place atomically, so the server never serves a half-written directory. Run the
-server with `--no-sync` when you use push.
+Or call the tool directly:
+
+```
+mirror-push --host your-server --user root --remote-dir /opt/mikrotik-mirror/packages \
+  --channels stable,long-term --proxy http://127.0.0.1:7890
+```
+
+For each architecture it fetches the `all_packages` zip (extra packages) **and** the
+main `routeros` package. Downloads resume if the CDN drops the connection; uploads are
+swapped into place atomically, so the server never serves a half-written directory.
+
+Notes:
+- `--arches` with a subset replaces the whole channel directory, dropping the other
+  architectures (the tool warns). Leave it at the default for real pushes.
+- Running from Git Bash: set `MSYS_NO_PATHCONV=1`, otherwise `/opt/...` is rewritten to
+  `C:/Program Files/Git/opt/...` (the tool refuses such a path).
 
 ## Configure a router (client)
 

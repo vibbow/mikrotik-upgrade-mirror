@@ -29,11 +29,11 @@ func TestParsePackageName(t *testing.T) {
 	}{
 		{"routeros-7.24.4-arm64.npk", "system", "7.24.4", "arm64"},
 		{"routeros-7.24.4-smips.npk", "system", "7.24.4", "smips"},
-		{"routeros-7.24.4.npk", "system", "7.24.4", "x86"}, // x86 main: no suffix
+		{"routeros-7.24.4.npk", "system", "7.24.4", "i386"}, // x86 main: no suffix
 		{"wireless-7.24.4-smips.npk", "wireless", "7.24.4", "smips"},
 		{"wifi-qcom-be-7.24.4-arm64.npk", "wifi-qcom-be", "7.24.4", "arm64"},
 		{"iot-bt-extra-7.24.4-arm64.npk", "iot-bt-extra", "7.24.4", "arm64"},
-		{"container-7.24.4.npk", "container", "7.24.4", "x86"}, // x86 extra: no suffix
+		{"container-7.24.4.npk", "container", "7.24.4", "i386"}, // x86 extra: no suffix
 		{"user-manager-7.23.7-mipsbe.npk", "user-manager", "7.23.7", "mipsbe"},
 		{"routeros-7.25beta3-arm.npk", "system", "7.25beta3", "arm"},
 	}

@@ -67,7 +67,11 @@ func main() {
 	}
 	defer sc.Close()
 
-	syncer := syncpkg.NewWithProxy(nil, splitCSV(*arches), 0, *proxy)
+	if len(splitCSV(*arches)) != len(syncpkg.DefaultArches) {
+		log.Printf("WARNING: pushing only %q. The channel directory on the server is replaced as a "+
+			"whole, so packages for every other architecture will be removed.", *arches)
+	}
+	syncer := syncpkg.New(splitCSV(*arches), *proxy)
 
 	for _, chName := range splitCSV(*channels) {
 		if err := pushChannel(syncer, sc, chName, *remoteDir, *force); err != nil {

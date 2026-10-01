@@ -30,9 +30,6 @@ type Account struct {
 type Server struct {
 	Listen   string
 	Accounts map[string]Account // keyed by username
-	// ReplayObjects, if set, is a list of raw M2 object bodies to return from LIST
-	// verbatim instead of scanning the directory (debug/diagnostic only).
-	ReplayObjects [][]byte
 }
 
 func (s *Server) Run() error {
@@ -55,15 +52,9 @@ func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	remote := conn.RemoteAddr()
 
-	// We must know which account before we can run the handshake (the server
-	// proves knowledge of that account's password). The username arrives inside
-	// the first hello, so we peek it via a wrapper that records it, then pick the
-	// matching account. Simpler: try each account? No — instead the handshake
-	// reads the username and we look it up. We re-implement by reading hello here.
-	//
-	// winbox.ServerHandshake takes a fixed credential, so we need the username
-	// first. We use a tee reader to capture the hello, extract the username, then
-	// replay the bytes into the handshake.
+	// The handshake proves knowledge of one account's password, but the username only
+	// arrives inside the client's first message. Peek at it (the bytes are buffered and
+	// replayed), pick the account, then run the handshake with that account's password.
 	peek := &teeConn{Conn: conn}
 	username, err := peekUsername(peek)
 	if err != nil {
@@ -84,7 +75,7 @@ func (s *Server) handle(conn net.Conn) {
 	}
 	log.Printf("[%s] authenticated %q -> channel dir %s", remote, who, acct.Dir)
 
-	c := &clientConn{conn: conn, chan_: chan_, acct: acct, replay: s.ReplayObjects}
+	c := &clientConn{conn: conn, chan_: chan_, acct: acct}
 	c.serve(remote)
 }
 
@@ -92,7 +83,6 @@ type clientConn struct {
 	conn     net.Conn
 	chan_    *winbox.SecureChannel
 	acct     Account
-	replay   [][]byte
 	sessions sync.Map // sid -> *fileSession
 	nextSID  uint32
 }
@@ -122,9 +112,6 @@ func (c *clientConn) serve(remote net.Addr) {
 				log.Printf("decrypt err: %v", err)
 				continue
 			}
-			m := winbox.Parse(pt)
-			log.Printf("recv len=%d cmd=%#x TO=%v FROM=%v reqid=%d",
-				len(pt), m[winbox.KeySysCmd].U, m[winbox.KeySysTo].Arr, m[winbox.KeySysFrom].Arr, m[winbox.KeySysReqID].U)
 			c.dispatch(pt)
 		}
 	}
@@ -147,16 +134,7 @@ func (c *clientConn) dispatch(pt []byte) {
 }
 
 func (c *clientConn) send(b []byte) {
-	enc := c.chan_.Encrypt(b)
-	log.Printf("send plain=%d enc=%d firsthex=%s", len(b), len(enc), hexPrefix(b, 40))
-	c.conn.Write(enc)
-}
-
-func hexPrefix(b []byte, n int) string {
-	if len(b) > n {
-		b = b[:n]
-	}
-	return fmt.Sprintf("%x", b)
+	c.conn.Write(c.chan_.Encrypt(b))
 }
 
 // replyHead builds a reply envelope (swapped TO/FROM, status ok, echoed reqid).
@@ -184,14 +162,9 @@ func (c *clientConn) doList(msg map[uint32]winbox.Value) {
 		log.Printf("list %s: %v", c.acct.Dir, err)
 		pkgs = nil
 	}
-	var subs [][]byte
-	if c.replay != nil {
-		subs = c.replay
-	} else {
-		subs = make([][]byte, 0, len(pkgs))
-		for i, p := range pkgs {
-			subs = append(subs, packageObject(p, uint32(520159587-i)))
-		}
+	subs := make([][]byte, 0, len(pkgs))
+	for i, p := range pkgs {
+		subs = append(subs, packageObject(p, uint32(520159587-i)))
 	}
 	// Match the real source's response layout: TO, FROM, empty 0xff001c str_array,
 	// the msg_array of objects, then status + echoed reqid.
@@ -313,14 +286,6 @@ func atomicNextSID(c *clientConn) uint32 {
 	defer sidMu.Unlock()
 	c.nextSID++
 	return c.nextSID
-}
-
-func keysOf(m map[uint32]winbox.Value) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, fmt.Sprintf("%#x", k))
-	}
-	return out
 }
 
 func (s *Server) Describe() string {

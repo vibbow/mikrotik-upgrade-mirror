@@ -17,13 +17,18 @@ ssh root@SERVER 'systemctl daemon-reload && systemctl enable --now mikrotik-mirr
 ```
 Open TCP 8291 to the routers that will use it.
 
-## 3. Keep packages fresh
-Either let the server self-sync (remove --no-sync from the unit), or push from a
-fast network:
+## 3. Put packages on the server
+The server does not download anything. From your workstation, edit the settings at the
+top of `push-mirror.ps1` (server, proxy) and double-click `push-mirror.bat`. The first
+run downloads ~440 MB (both channels, all architectures) and takes a while through a
+proxy; later runs skip a channel that is already at the latest version.
+
+## Updating the server binary
 ```
-go build -o mirror-push ./cmd/mirror-push
-./mirror-push --host SERVER --user root \
-  --remote-dir /opt/mikrotik-mirror/packages \
-  --proxy http://127.0.0.1:7890
+scp dist/mikrotik-mirror-linux-amd64 root@SERVER:/opt/mikrotik-mirror/mikrotik-mirror.new
+ssh root@SERVER 'chmod +x /opt/mikrotik-mirror/mikrotik-mirror.new && \
+  mv /opt/mikrotik-mirror/mikrotik-mirror.new /opt/mikrotik-mirror/mikrotik-mirror && \
+  systemctl restart mikrotik-mirror'
 ```
-Automate the push with a cron job / scheduled task on the workstation.
+Do not forget the `chmod +x`: a copied binary without it makes the unit fail with
+"Permission denied". Restarting interrupts any download in progress (the router retries).

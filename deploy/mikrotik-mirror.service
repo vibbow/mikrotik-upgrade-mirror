@@ -6,14 +6,12 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/mikrotik-mirror
-# --no-sync: packages are pushed with mirror-push from a fast network.
-# Drop --no-sync (and optionally add --proxy / --sync-interval) to let the
-# server download from MikroTik itself.
+# The server only serves files; packages are pushed with mirror-push.
+# Accounts: stable/stable and longterm/longterm (password = username).
 ExecStart=/opt/mikrotik-mirror/mikrotik-mirror \
   --listen 0.0.0.0:8291 \
   --stable-dir /opt/mikrotik-mirror/packages/stable \
-  --longterm-dir /opt/mikrotik-mirror/packages/long-term \
-  --no-sync
+  --longterm-dir /opt/mikrotik-mirror/packages/long-term
 Restart=on-failure
 RestartSec=10
 # hardening

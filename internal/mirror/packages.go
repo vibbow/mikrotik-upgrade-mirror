@@ -11,7 +11,9 @@ import (
 
 // npk filename: <name>-<version>[-<arch>].npk
 // MikroTik publishes x86 packages without an architecture suffix
-// (e.g. routeros-7.24.4.npk), so the arch group is optional and defaults to x86.
+// (e.g. routeros-7.24.4.npk), so the arch group is optional. Their npk headers name
+// the architecture "i386" (smips packages say "smips", arm64 say "arm64"), and that
+// is the label a router matches against, so a missing suffix maps to i386.
 var npkRE = regexp.MustCompile(`^([a-z0-9_\-]+?)-(\d[\w.]*?)(?:-([a-z0-9_]+))?\.npk$`)
 
 // The main system package is published to clients under the object name "system".
@@ -72,7 +74,7 @@ func parsePackage(path string, info os.FileInfo) Package {
 	p.Version = m[2]
 	p.Arch = m[3]
 	if p.Arch == "" {
-		p.Arch = "x86" // no suffix means x86 (assumed label; see research notes)
+		p.Arch = "i386" // no suffix means x86; "i386" is what the npk header carries
 	}
 	return p
 }
