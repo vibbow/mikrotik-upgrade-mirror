@@ -93,6 +93,26 @@ add address=<server-ip> user=stable       ;# or user=longterm
 Packages are genuine signed MikroTik `.npk` files; the router verifies the
 signature on install, so the mirror can only ever serve authentic packages.
 
+## Bulk-configure routers from the Winbox address book
+
+`mirror-upgrade` reads Winbox's `Addresses.cdb`, logs in to each router over the RouterOS
+REST API (https, falling back to http; needs `www-ssl` or `www` enabled), and per router:
+
+1. reads its update **channel** and picks the mirror account (`stable` or `long-term`->`longterm`);
+   other channels (testing, development) are skipped;
+2. binds `local-update` `update-package-source` to the mirror with that account;
+3. refreshes, and downloads only packages the router reports as `available` (already
+   `downloaded` ones are not fetched again).
+
+It never reboots; downloaded packages install on the next reboot. A router listed under
+several entries (LAN + public address) is recognised by its licence system-id and handled once.
+Entries with a MAC address or no saved login are skipped. A rejected login is never retried.
+
+```
+mirror-upgrade --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10            # dry run: look only
+mirror-upgrade --addressbook ... --only 192.168.1.1 --apply                              # change matching routers
+```
+
 ## Build
 
 ```
