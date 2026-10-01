@@ -43,6 +43,7 @@ func (f *fakeRouter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		out(f.sources)
 	case strings.HasPrefix(path, sourcePath):
 		f.bound = body
+		f.sources = []map[string]string{{".id": "*1", "address": body["address"], "user": body["user"]}}
 	case path == luPath+"/refresh":
 	case path == luPath && r.Method == "GET":
 		out(f.pkgs)
@@ -137,5 +138,46 @@ func TestSameRouterTwoAddressesProcessedOnce(t *testing.T) {
 	}
 	if got[0] != Staged || got[1] != Skipped {
 		t.Fatalf("%v", got)
+	}
+}
+
+func runConfirm(t *testing.T, f *fakeRouter, confirm func(string) bool) (Result, []string) {
+	srv := httptest.NewServer(f)
+	defer srv.Close()
+	c, err := routeros.Dial(context.Background(), strings.TrimPrefix(srv.URL, "http://"), "admin", "pw", 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var asked []string
+	r := Router(context.Background(), c, Options{Mirror: "1.2.3.4", Apply: true, DownloadTimeout: time.Second,
+		Accounts: map[string]Account{"stable": {"stable", "st"}},
+		Confirm:  func(q string) bool { asked = append(asked, q); return confirm(q) }})
+	return r, asked
+}
+
+func TestDeclineBindChangesNothing(t *testing.T) {
+	f := &fakeRouter{channel: "stable"}
+	r, asked := runConfirm(t, f, func(string) bool { return false })
+	if r.Status != Skipped || f.bound != nil || len(asked) != 1 || !strings.Contains(asked[0], "绑定") {
+		t.Fatalf("%+v bound=%v asked=%q", r, f.bound, asked)
+	}
+}
+
+func TestAlreadyBoundAsksOnlyAboutDownload(t *testing.T) {
+	f := &fakeRouter{channel: "stable",
+		sources: []map[string]string{{".id": "*1", "address": "1.2.3.4", "user": "stable"}},
+		pkgs:    []map[string]string{{".id": "*1", "name": "routeros", "version": "7.23.7", "status": "available"}}}
+	r, asked := runConfirm(t, f, func(string) bool { return false })
+	if r.Status != Skipped || f.downloads != "" || len(asked) != 1 || !strings.Contains(asked[0], "下载") {
+		t.Fatalf("%+v asked=%q", r, asked)
+	}
+}
+
+func TestBindThenDownloadAskedInOrder(t *testing.T) {
+	f := &fakeRouter{channel: "stable",
+		pkgs: []map[string]string{{".id": "*1", "name": "routeros", "version": "7.23.7", "status": "available"}}}
+	r, asked := runConfirm(t, f, func(string) bool { return true })
+	if r.Status != Staged || len(asked) != 2 || !strings.Contains(asked[0], "绑定") || !strings.Contains(asked[1], "下载") {
+		t.Fatalf("%+v asked=%q", r, asked)
 	}
 }

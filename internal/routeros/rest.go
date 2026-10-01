@@ -17,7 +17,7 @@ import (
 
 // ErrAuth means the router rejected the login. Callers must not retry: repeated bad
 // logins can lock the source address out.
-var ErrAuth = errors.New("authentication failed")
+var ErrAuth = errors.New("登录失败 (用户名或密码被拒绝)")
 
 // Client talks to one router.
 type Client struct {
@@ -35,15 +35,14 @@ func Dial(ctx context.Context, host, user, pass string, timeout time.Duration) (
 		TLSHandshakeTimeout: timeout,
 		DialContext:         (&net.Dialer{Timeout: timeout}).DialContext,
 	}
-	var lastErr error
+	var errs []string
 	for _, scheme := range []string{"https", "http"} {
 		c := &Client{
 			base: scheme + "://" + host + "/rest",
 			user: user, pass: pass,
 			http: &http.Client{Transport: tr, Timeout: timeout},
 		}
-		var res map[string]any
-		err := c.Get(ctx, "/system/resource", &res)
+		err := c.probe(ctx)
 		if err == nil {
 			return c, nil
 		}
@@ -51,11 +50,11 @@ func Dial(ctx context.Context, host, user, pass string, timeout time.Duration) (
 			return nil, err
 		}
 		if strings.Contains(err.Error(), "HTTP 404") {
-			err = fmt.Errorf("no REST API at this address (RouterOS v6, or www service not RouterOS?)")
+			err = fmt.Errorf("此地址没有 REST API (可能是 RouterOS v6，或 www 服务未开启)")
 		}
-		lastErr = err
+		errs = append(errs, scheme+": "+err.Error())
 	}
-	return nil, lastErr
+	return nil, errors.New(strings.Join(errs, "; "))
 }
 
 // WithTimeout returns a copy whose requests may take up to d (for long downloads).
@@ -106,6 +105,9 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 		}
 		return fmt.Errorf("%s %s: HTTP %d", method, path, resp.StatusCode)
 	}
+	if out != nil && len(bytes.TrimSpace(raw)) == 0 {
+		return fmt.Errorf("%s %s: HTTP %d 但响应内容为空 (Server=%q, Content-Type=%q)", method, path, resp.StatusCode, resp.Header.Get("Server"), resp.Header.Get("Content-Type"))
+	}
 	if out != nil && len(bytes.TrimSpace(raw)) > 0 {
 		if err := json.Unmarshal(raw, out); err != nil {
 			return fmt.Errorf("%s %s: bad JSON: %w", method, path, err)
@@ -148,4 +150,25 @@ func MainVersion(v string) string {
 		return v[:i]
 	}
 	return v
+}
+
+// probe checks that the endpoint really is a RouterOS REST API: /system/resource must
+// answer with an object that has a version. Anything else (an empty 200, an HTML page)
+// is reported with a snippet of what came back.
+func (c *Client) probe(ctx context.Context) error {
+	var raw json.RawMessage
+	if err := c.Get(ctx, "/system/resource", &raw); err != nil {
+		return err
+	}
+	var res map[string]any
+	if json.Unmarshal(raw, &res) == nil {
+		if _, ok := res["version"]; ok {
+			return nil
+		}
+	}
+	snip := strings.TrimSpace(string(raw))
+	if len(snip) > 120 {
+		snip = snip[:120] + "..."
+	}
+	return fmt.Errorf("%s 不是有效的 RouterOS REST 响应 (没有 version 字段), 返回内容: %q", c.base, snip)
 }

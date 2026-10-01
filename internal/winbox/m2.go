@@ -217,6 +217,18 @@ func Parse(data []byte) map[uint32]Value {
 					pos += n
 				}
 			}
+		case 0x28: // nested message, u16 length (skipped)
+			if pos+2 <= len(data) {
+				n := int(binary.LittleEndian.Uint16(data[pos:]))
+				pos += 2 + n
+				res[key] = Value{Type: typ}
+			}
+		case 0x29: // nested message, u8 length (skipped)
+			if pos < len(data) {
+				n := int(data[pos])
+				pos += 1 + n
+				res[key] = Value{Type: typ}
+			}
 		case 0xA0: // str_array: [count][ (len u16)(bytes) ... ]
 			if pos+2 <= len(data) {
 				n := int(binary.LittleEndian.Uint16(data[pos:]))
@@ -242,4 +254,12 @@ func Parse(data []byte) map[uint32]Value {
 		}
 	}
 	return res
+}
+
+// Msg packs a nested M2 message (type 0x29, u8 length).
+func (m *M2Builder) Msg(low, high, ns byte, sub []byte) *M2Builder {
+	m.hdr(low, high, ns)
+	m.b = append(m.b, 0x29, byte(len(sub)))
+	m.b = append(m.b, sub...)
+	return m
 }

@@ -103,7 +103,7 @@ func pushChannel(syncer *syncpkg.Syncer, sc *sftp.Client, chName, remoteRoot str
 	if err != nil {
 		return err
 	}
-	log.Printf("push %s: downloaded %d packages locally, uploading...", chName, n)
+	log.Printf("push %s: 本地下载完成，共 %d 个包", chName, n)
 
 	newDir := remoteRoot + "/" + chName + ".new"
 	oldDir := remoteRoot + "/" + chName + ".old"
@@ -114,9 +114,11 @@ func pushChannel(syncer *syncpkg.Syncer, sc *sftp.Client, chName, remoteRoot str
 	}
 
 	entries, _ := os.ReadDir(localTmp)
-	for _, e := range entries {
+	log.Printf("push %s: 开始上传 %d 个文件", chName, len(entries))
+	for i, e := range entries {
 		local := filepath.Join(localTmp, e.Name())
 		remote := newDir + "/" + e.Name()
+		log.Printf("  上传 [%d/%d] %s", i+1, len(entries), e.Name())
 		if err := uploadFile(sc, local, remote); err != nil {
 			return fmt.Errorf("upload %s: %w", e.Name(), err)
 		}
@@ -150,7 +152,11 @@ func uploadFile(sc *sftp.Client, local, remote string) error {
 		return err
 	}
 	defer out.Close()
-	_, err = out.ReadFrom(in)
+	var size int64
+	if st, err := in.Stat(); err == nil {
+		size = st.Size()
+	}
+	_, err = out.ReadFrom(syncpkg.NewProgress(in, "上传 "+filepath.Base(local), 0, size))
 	return err
 }
 

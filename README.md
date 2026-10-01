@@ -95,8 +95,8 @@ signature on install, so the mirror can only ever serve authentic packages.
 
 ## Bulk-configure routers from the Winbox address book
 
-`mirror-upgrade` reads Winbox's `Addresses.cdb`, logs in to each router over the RouterOS
-REST API (https, falling back to http; needs `www-ssl` or `www` enabled), and per router:
+`mirror-upgrade` reads Winbox's `Addresses.cdb`, logs in to each router (Winbox terminal, or the RouterOS
+REST API with `--transport rest`), and per router:
 
 1. reads its update **channel** and picks the mirror account (`stable` or `long-term`->`longterm`);
    other channels (testing, development) are skipped;
@@ -104,14 +104,24 @@ REST API (https, falling back to http; needs `www-ssl` or `www` enabled), and pe
 3. refreshes, and downloads only packages the router reports as `available` (already
    `downloaded` ones are not fetched again).
 
-It never reboots; downloaded packages install on the next reboot. A router listed under
+**Transport.** By default `mirror-upgrade` talks **Winbox** (the address book's own port, 8291): it opens a
+terminal session (Winbox handler `[76]`) and runs RouterOS CLI commands, so no REST/SSH service is needed and
+routers whose web port is forwarded elsewhere work. `--transport rest` uses the REST API instead
+(needs `www`/`www-ssl`). `winbox-capture` is the man-in-the-middle used to decode the terminal
+messages (see `research/`); it is only needed to extend the protocol support.
+
+It is interactive: it asks once per router whether to connect; after a yes it binds the mirror,
+refreshes and downloads by itself (`--confirm-steps` also asks before bind/download). `--yes` skips all questions, `--dry-run` only looks. At the end it lists the routers that need a manual reboot; it never reboots. A router listed under
 several entries (LAN + public address) is recognised by its licence system-id and handled once.
 Entries with a MAC address or no saved login are skipped. A rejected login is never retried.
 
 ```
-mirror-upgrade --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10            # dry run: look only
-mirror-upgrade --addressbook ... --only 192.168.1.1 --apply                              # change matching routers
+upgrade-routers.bat                       # double-click: builds mirror-upgrade.exe, asks before each step
+upgrade-routers.bat -DryRun -Only 192.168.1.1   # look only, matching entries
+mirror-upgrade.exe --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10 --yes   # no questions
 ```
+
+Edit the settings block at the top of `upgrade-routers.ps1` (address book path, mirror address).
 
 ## Build
 

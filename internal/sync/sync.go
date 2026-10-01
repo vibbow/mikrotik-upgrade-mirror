@@ -76,7 +76,8 @@ func (s *Syncer) FetchInto(channel, version, dstDir string) (int, error) {
 		return 0, err
 	}
 	total := 0
-	for _, arch := range s.Arches {
+	for i, arch := range s.Arches {
+		log.Printf("[%d/%d] 架构 %s", i+1, len(s.Arches), arch)
 		n, err := s.fetchArchN(version, arch, dstDir)
 		if err != nil {
 			return total, fmt.Errorf("arch %s: %w", arch, err)
@@ -114,7 +115,7 @@ func (s *Syncer) latestVersion(channel string) (string, error) {
 // getWithRetry downloads a URL with resumable retries. MikroTik's CDN frequently
 // resets connections mid-download, so on failure we reconnect with a Range header
 // and continue from the bytes already received instead of starting over.
-func (s *Syncer) getWithRetry(url string, maxStalls int) ([]byte, error) {
+func (s *Syncer) getWithRetry(url, label string, maxStalls int) ([]byte, error) {
 	var buf []byte
 	var total int64 = -1
 	var lastErr error
@@ -126,6 +127,9 @@ func (s *Syncer) getWithRetry(url string, maxStalls int) ([]byte, error) {
 		}
 		before := len(buf)
 
+		if len(buf) == 0 && stalls == 0 {
+			log.Printf("  开始下载 %s", label)
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if len(buf) > 0 {
@@ -135,6 +139,7 @@ func (s *Syncer) getWithRetry(url string, maxStalls int) ([]byte, error) {
 		if err != nil {
 			cancel()
 			lastErr = err
+			log.Printf("  下载 %s 连接失败: %v，重试", label, err)
 			stalls++
 			continue
 		}
@@ -156,7 +161,7 @@ func (s *Syncer) getWithRetry(url string, maxStalls int) ([]byte, error) {
 			stalls++
 			continue
 		}
-		chunk, err := io.ReadAll(resp.Body)
+		chunk, err := io.ReadAll(NewProgress(resp.Body, "下载 "+label, int64(len(buf)), total))
 		resp.Body.Close()
 		cancel()
 		buf = append(buf, chunk...)
@@ -169,6 +174,7 @@ func (s *Syncer) getWithRetry(url string, maxStalls int) ([]byte, error) {
 		} else {
 			lastErr = fmt.Errorf("short read %d/%d", len(buf), total)
 		}
+		log.Printf("  下载 %s 中断: %v (已收到 %s)，重试续传", label, lastErr, Size(int64(len(buf))))
 		// An attempt that downloaded more bytes is progress, not a stall.
 		if len(buf) > before {
 			stalls = 0
@@ -181,7 +187,7 @@ func (s *Syncer) getWithRetry(url string, maxStalls int) ([]byte, error) {
 
 func (s *Syncer) fetchArchN(version, arch, dstDir string) (int, error) {
 	url := fmt.Sprintf(zipURLFmt, version, arch, version)
-	data, err := s.getWithRetry(url, 8)
+	data, err := s.getWithRetry(url, arch+" 扩展包", 8)
 	if err != nil {
 		return 0, err
 	}
@@ -204,7 +210,7 @@ func (s *Syncer) fetchArchN(version, arch, dstDir string) (int, error) {
 	// is published separately, so fetch it too — without it a router cannot
 	// upgrade RouterOS itself.
 	main := MainPackageName(version, arch)
-	mainData, err := s.getWithRetry(fmt.Sprintf(mainURLFmt, version, main), 8)
+	mainData, err := s.getWithRetry(fmt.Sprintf(mainURLFmt, version, main), arch+" 主包", 8)
 	if err != nil {
 		return n, fmt.Errorf("main package %s: %w", main, err)
 	}

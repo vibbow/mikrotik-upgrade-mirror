@@ -3,6 +3,10 @@
 /mikrotik-mirror.exe
 /mirror-push
 /mirror-push.exe
+/mirror-upgrade
+/mirror-upgrade.exe
+/winbox-capture
+/winbox-capture.exe
 /dist/
 
 # local package store (synced/pushed at runtime, not source)
@@ -18,3 +22,7 @@ research/vectors.json
 # local Claude Code state (memory holds secrets; settings.local is personal)
 /.claude/memory/
 /.claude/settings.local.json
+
+# protocol captures (contain router data)
+/capture*
+/research/captures/
