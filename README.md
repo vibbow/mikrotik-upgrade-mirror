@@ -1,5 +1,7 @@
 # mikrotik-mirror
 
+**中文** | [English](README_en.md)
+
 一个可以跑在普通 Linux 上的自建 **RouterOS `local-update` 升级包源**。
 
 RouterOS 7.17+ 可以通过 Winbox 协议从另一台设备升级（`/system/package/local-update`），
