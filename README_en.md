@@ -57,8 +57,8 @@ Deployment: see [`deploy/README.md`](deploy/README.md).
 
 ## Pushing packages
 
-`scripts/push-mirror.bat` / `scripts/push-mirror.ps1` wraps `mirror-push`. Edit the settings block at the
-top of `scripts/push-mirror.ps1` (server, user, remote dir, proxy), then:
+`scripts/push-mirror.bat` / `scripts/push-mirror.ps1` wraps `mirror-push`. First put your
+server, user, remote dir and proxy in `scripts/config.ps1` (copy `scripts/config.example.ps1`), then:
 
 ```
 scripts/push-mirror.bat              # both channels; skips a channel that is already current
@@ -142,9 +142,13 @@ scripts/upgrade-routers.bat -Transport rest              # use the REST API inst
 mirror-upgrade.exe --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10 --yes   # no questions
 ```
 
-Edit the settings block at the top of `scripts/upgrade-routers.ps1` first (address book path,
-mirror address). For an ignore list, copy `scripts/ignore.example.txt` to
-`scripts/ignore.txt` (git-ignored); the launcher uses it automatically when it exists. The mirror address is the one the **routers** use to reach the mirror server.
+**Local config:** private settings (server, proxy, address book path, mirror address) live in
+`scripts/config.ps1`, which is git-ignored. First use: copy `scripts/config.example.ps1` to
+`scripts/config.ps1` and fill in your own values; both `push-mirror.ps1` and `upgrade-routers.ps1` read it.
+The mirror address is the one the **routers** use to reach the mirror server.
+
+For an ignore list, copy `scripts/ignore.example.txt` to `scripts/ignore.txt` (git-ignored); the
+launcher uses it automatically when it exists.
 
 `winbox-capture` is a man-in-the-middle proxy: point Winbox at it, it relays to the router and
 records the decrypted messages, which is how new Winbox operations get decoded (`--dump`

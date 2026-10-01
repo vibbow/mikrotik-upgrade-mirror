@@ -7,7 +7,7 @@
 #
 #   .\upgrade-routers.ps1                       interactive, one router at a time
 #   .\upgrade-routers.ps1 -DryRun               look only, never bind or download
-#   .\upgrade-routers.ps1 -Only 192.168.1.1    only entries whose address/note/group match
+#   .\upgrade-routers.ps1 -Only 192.168.1.1      only entries whose address/note/group match
 #   .\upgrade-routers.ps1 -Yes                  no questions, all routers (use with care)
 #   .\upgrade-routers.ps1 -List                 list the address book and exit
 #
@@ -26,12 +26,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ---- settings: edit here -------------------------------------------------------------
-$Config = @{
-    AddressBook = 'C:\path\to\Addresses.cdb'
-    Mirror      = '203.0.113.10'    # the mirror's address as the ROUTERS reach it
-    IgnoreFile  = 'scripts\ignore.txt'   # routers listed here are skipped (copy scripts\ignore.example.txt)
+# ---- settings live in scripts\config.ps1 (not committed; copy config.example.ps1) ------
+$configFile = Join-Path $PSScriptRoot 'config.ps1'
+if (-not (Test-Path $configFile)) {
+    throw "找不到 $configFile - 请把 scripts\config.example.ps1 复制为 scripts\config.ps1 并填入你自己的信息。"
 }
+. $configFile
+# Mirror = the address the ROUTERS use to reach the mirror; IgnoreFile = routers to skip
+$Config = $UpgradeConfig
 # --------------------------------------------------------------------------------------
 
 # scripts live in scripts/; build and run from the repository root

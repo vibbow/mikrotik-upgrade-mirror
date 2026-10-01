@@ -7,8 +7,8 @@ cannot reach the official HTTP mirror can upgrade over Winbox (TCP 8291).
 ## Test bench
 | role | addr | arch | version | notes |
 |------|------|------|---------|-------|
-| package source | 192.168.1.1 | arm64 | 7.24.4 stable | RB5009 |
-| client | 192.168.1.2 | smips | 7.20.7 long-term | hAP mini, 32MB RAM |
+| package source | <bench-router-A> | arm64 | 7.24.4 stable | RB5009 |
+| client | <bench-router-B> | smips | 7.20.7 long-term | hAP mini, 32MB RAM |
 
 Test accounts are not recorded here. smips packages (routeros, wireless 7.24.4) uploaded to
 bench-router-A via SFTP (REST /tool fetch cannot write .npk — filesystem restriction).
@@ -74,7 +74,7 @@ verified against live bench-router-B:
 ### Still to do
 1. Package sync from upgrade.mikrotik.com (stable + long-term, all arches, all pkgs
    via all_packages-<arch>-<ver>.zip). URLs verified.
-2. Cross-compile Linux binary + systemd unit; deploy to mirror.example.com (8291 open).
+2. Cross-compile Linux binary + systemd unit; deploy to <mirror-server> (8291 open).
 3. Cosmetic: client version display showed stale value in one test; confirm with a
    genuinely newer package that download installs on reboot.
 
@@ -85,7 +85,7 @@ verified against live bench-router-B:
   or HTTP(S)_PROXY). MikroTik CDN resets large downloads often, so resume is needed.
 - `cmd/mirror-push`: downloads locally (fast link / proxy) and SFTPs to the server
   with atomic swap — for servers whose own link to MikroTik is slow (e.g. a cloud VPS).
-- Deployed to mirror.example.com: /opt/mikrotik-mirror, systemd unit.
+- Deployed to <mirror-server>: /opt/mikrotik-mirror, systemd unit.
   deploy/ has the unit file + instructions.
 - The server never downloads anything (sync code removed from it); packages are pushed
   with push-mirror.bat / push-mirror.ps1 from the owner's PC.
@@ -94,7 +94,7 @@ verified against live bench-router-B:
 - smips hAP mini (bench-router-B) upgraded 7.20.7 -> 7.23.7 (long-term) through the public mirror
   on the public mirror server, account longterm/longterm: LIST, download of the main routeros package
   (7195756 B) and wireless (684177 B), install on reboot.
-- x86 CHR (192.168.1.3): lists x86 packages and flags exactly its installed set
+- x86 CHR (<bench-router-C>): lists x86 packages and flags exactly its installed set
   (container, routeros, user-manager) as installed. Required arch label "i386".
 - Router retries a download from scratch when the connection drops; restarting the
   server mid-download only costs a retry.

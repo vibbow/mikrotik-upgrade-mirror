@@ -52,8 +52,8 @@ mikrotik-mirror \
 
 ## 推送升级包
 
-`scripts/push-mirror.bat` / `scripts/push-mirror.ps1` 是对 `mirror-push` 的封装。先修改 `scripts/push-mirror.ps1` 顶部
-的设置（服务器、用户、远程目录、代理），然后：
+`scripts/push-mirror.bat` / `scripts/push-mirror.ps1` 是对 `mirror-push` 的封装。先在
+`scripts/config.ps1` 里填好服务器、用户、远程目录和代理（复制 `scripts/config.example.ps1`），然后：
 
 ```
 scripts/push-mirror.bat              # 两个通道都更新；已经是最新的通道会跳过
@@ -129,7 +129,9 @@ scripts/upgrade-routers.bat -Transport rest              # 改用 REST API
 mirror-upgrade.exe --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10 --yes   # 不询问
 ```
 
-使用前修改 `scripts/upgrade-routers.ps1` 顶部的设置（地址簿路径、镜像地址）。
+**本地配置：** 脚本的私人设置（服务器地址、代理、地址簿路径、镜像地址）放在 `scripts/config.ps1`，
+这个文件已加入 `.gitignore`，不会被提交。首次使用：把 `scripts/config.example.ps1` 复制为
+`scripts/config.ps1` 并填入你自己的信息；`push-mirror.ps1` 和 `upgrade-routers.ps1` 都会读取它。
 忽略列表：把 `scripts/ignore.example.txt` 复制为 `scripts/ignore.txt`（已加入 .gitignore，不会提交）并按需修改，
 启动脚本发现这个文件就会自动使用。镜像地址是**路由器**访问镜像
 服务器用的地址。

@@ -27,3 +27,6 @@ capture*.txt
 
 # personal ignore list for mirror-upgrade (copy scripts/ignore.example.txt)
 /scripts/ignore.txt
+
+# personal settings (server, proxy, address book path): copy scripts/config.example.ps1
+/scripts/config.ps1

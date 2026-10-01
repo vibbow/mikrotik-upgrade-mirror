@@ -1,7 +1,7 @@
 # One-click update of the mirror server.
 #
 # Downloads the latest stable + long-term RouterOS packages on THIS machine (through
-# the proxy below) and uploads them to the mirror server over SSH/SFTP. The server never
+# the proxy set in scripts/config.ps1) and uploads them to the mirror server over SSH/SFTP. The server never
 # downloads anything itself. Run it whenever MikroTik releases a new version; it skips a
 # channel whose version on the server is already the latest.
 #
@@ -21,13 +21,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ---- settings: edit here -------------------------------------------------------------
-$Config = @{
-    Host      = 'mirror.example.com'
-    User      = 'root'
-    RemoteDir = '/opt/mikrotik-mirror/packages'
-    Proxy     = 'http://127.0.0.1:7890'   # '' = no proxy (HTTP_PROXY/HTTPS_PROXY still honoured)
+# ---- settings live in scripts\config.ps1 (not committed; copy config.example.ps1) ------
+$configFile = Join-Path $PSScriptRoot 'config.ps1'
+if (-not (Test-Path $configFile)) {
+    throw "Missing $configFile - copy scripts\config.example.ps1 to scripts\config.ps1 and fill in your server."
 }
+. $configFile
+$Config = $PushConfig   # Proxy '' = no proxy (HTTP_PROXY/HTTPS_PROXY are still honoured)
 # --------------------------------------------------------------------------------------
 
 # scripts live in scripts/; build and run from the repository root

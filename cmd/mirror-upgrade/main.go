@@ -37,7 +37,7 @@ func main() {
 
 	var (
 		book         = flag.String("addressbook", "", "Winbox 地址簿 Addresses.cdb 的路径 (默认在常见位置查找)")
-		mirror       = flag.String("mirror", "203.0.113.10", "镜像服务器地址 (路由器访问它用的地址)")
+		mirror       = flag.String("mirror", "", "镜像服务器地址 (路由器访问它用的地址，必填)")
 		stableP      = flag.String("stable-password", "stable", "镜像 `stable` 账号的密码")
 		longP        = flag.String("longterm-password", "longterm", "镜像 `longterm` 账号的密码")
 		yes          = flag.Bool("yes", false, "不询问: 对所有路由器直接连接、绑定、下载 (并行执行)")
@@ -53,6 +53,9 @@ func main() {
 		ignoreList   = flag.String("ignore", "", "忽略列表: 逗号分隔的地址，自动跳过")
 	)
 	flag.Parse()
+	if *mirror == "" && !*list {
+		fatal(fmt.Errorf("请用 --mirror 指定镜像服务器地址 (路由器访问它用的地址)"))
+	}
 
 	path, err := findBook(*book)
 	if err != nil {
