@@ -1,0 +1,25 @@
+[Unit]
+Description=MikroTik local-update package mirror (Winbox)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mikrotik-mirror
+# --no-sync: packages are pushed with mirror-push from a fast network.
+# Drop --no-sync (and optionally add --proxy / --sync-interval) to let the
+# server download from MikroTik itself.
+ExecStart=/opt/mikrotik-mirror/mikrotik-mirror \
+  --listen 0.0.0.0:8291 \
+  --stable-dir /opt/mikrotik-mirror/packages/stable \
+  --longterm-dir /opt/mikrotik-mirror/packages/long-term \
+  --no-sync
+Restart=on-failure
+RestartSec=10
+# hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
