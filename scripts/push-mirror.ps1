@@ -30,7 +30,9 @@ $Config = @{
 }
 # --------------------------------------------------------------------------------------
 
-Set-Location -Path $PSScriptRoot
+# scripts live in scripts/; build and run from the repository root
+$Root = Split-Path -Parent $PSScriptRoot
+Set-Location -Path $Root
 if ($RemoteDir -eq '') { $RemoteDir = $Config.RemoteDir }
 
 # Build the tool (fast) so it always matches the source; fall back to an existing exe.
@@ -38,7 +40,7 @@ $goExe = $null
 $found = Get-Command go -ErrorAction SilentlyContinue
 if ($found) { $goExe = $found.Source }
 elseif (Test-Path 'C:\Program Files\Go\bin\go.exe') { $goExe = 'C:\Program Files\Go\bin\go.exe' }
-$exe = Join-Path $PSScriptRoot 'mirror-push.exe'
+$exe = Join-Path $Root 'mirror-push.exe'
 if ($goExe) {
     Write-Host '== building mirror-push'
     & $goExe build -o $exe ./cmd/mirror-push

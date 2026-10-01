@@ -19,7 +19,7 @@ Open TCP 8291 to the routers that will use it.
 
 ## 3. Put packages on the server
 The server does not download anything. From your workstation, edit the settings at the
-top of `push-mirror.ps1` (server, proxy) and double-click `push-mirror.bat`. The first
+top of `scripts/push-mirror.ps1` (server, proxy) and double-click `scripts/push-mirror.bat`. The first
 run downloads ~440 MB (both channels, all architectures) and takes a while through a
 proxy; later runs skip a channel that is already at the latest version.
 

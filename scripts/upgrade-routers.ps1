@@ -33,13 +33,15 @@ $Config = @{
 }
 # --------------------------------------------------------------------------------------
 
-Set-Location -Path $PSScriptRoot
+# scripts live in scripts/; build and run from the repository root
+$Root = Split-Path -Parent $PSScriptRoot
+Set-Location -Path $Root
 
 $goExe = $null
 $found = Get-Command go -ErrorAction SilentlyContinue
 if ($found) { $goExe = $found.Source }
 elseif (Test-Path 'C:\Program Files\Go\bin\go.exe') { $goExe = 'C:\Program Files\Go\bin\go.exe' }
-$exe = Join-Path $PSScriptRoot 'mirror-upgrade.exe'
+$exe = Join-Path $Root 'mirror-upgrade.exe'
 if ($goExe) {
     Write-Host '== 正在编译 mirror-upgrade'
     & $goExe build -o $exe ./cmd/mirror-upgrade

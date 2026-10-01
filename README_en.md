@@ -19,10 +19,10 @@ Four programs:
 | `mirror-upgrade` | your workstation | reads the Winbox address book, connects to each router, binds the mirror and downloads updates |
 | `winbox-capture` | your workstation | Winbox man-in-the-middle capture proxy, only for protocol research |
 
-**Updating the mirror:** double-click `push-mirror.bat` (or run `push-mirror.ps1`). It
+**Updating the mirror:** double-click `scripts/push-mirror.bat` (or run `scripts/push-mirror.ps1`). It
 downloads the latest stable + long-term packages on your machine and uploads them.
 
-**Upgrading routers:** double-click `upgrade-routers.bat`, see "Bulk-upgrade routers" below.
+**Upgrading routers:** double-click `scripts/upgrade-routers.bat`, see "Bulk-upgrade routers" below.
 
 ## How clients pick a channel
 
@@ -57,13 +57,13 @@ Deployment: see [`deploy/README.md`](deploy/README.md).
 
 ## Pushing packages
 
-`push-mirror.bat` / `push-mirror.ps1` wraps `mirror-push`. Edit the settings block at the
-top of `push-mirror.ps1` (server, user, remote dir, proxy), then:
+`scripts/push-mirror.bat` / `scripts/push-mirror.ps1` wraps `mirror-push`. Edit the settings block at the
+top of `scripts/push-mirror.ps1` (server, user, remote dir, proxy), then:
 
 ```
-push-mirror.bat              # both channels; skips a channel that is already current
-push-mirror.bat -Force       # re-download and re-upload anyway
-push-mirror.bat -Channels stable
+scripts/push-mirror.bat              # both channels; skips a channel that is already current
+scripts/push-mirror.bat -Force       # re-download and re-upload anyway
+scripts/push-mirror.bat -Channels stable
 ```
 
 Or call the tool directly:
@@ -135,13 +135,13 @@ system-id and handled once. Entries with a MAC address or no saved login are ski
 rejected login is never retried, to avoid triggering a lockout.
 
 ```
-upgrade-routers.bat                              # double-click: builds, asks per router
-upgrade-routers.bat -DryRun -Only 192.168.1.1   # look only, matching entries
-upgrade-routers.bat -Transport rest              # use the REST API instead
+scripts/upgrade-routers.bat                              # double-click: builds, asks per router
+scripts/upgrade-routers.bat -DryRun -Only 192.168.1.1   # look only, matching entries
+scripts/upgrade-routers.bat -Transport rest              # use the REST API instead
 mirror-upgrade.exe --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10 --yes   # no questions
 ```
 
-Edit the settings block at the top of `upgrade-routers.ps1` first (address book path,
+Edit the settings block at the top of `scripts/upgrade-routers.ps1` first (address book path,
 mirror address). The mirror address is the one the **routers** use to reach the mirror server.
 
 `winbox-capture` is a man-in-the-middle proxy: point Winbox at it, it relays to the router and
@@ -161,7 +161,7 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" \
   -o dist/mikrotik-mirror-linux-amd64 ./cmd/mikrotik-mirror
 ```
 
-`push-mirror.ps1` and `upgrade-routers.ps1` rebuild their program on every run (Go required).
+`scripts/push-mirror.ps1` and `scripts/upgrade-routers.ps1` rebuild their program on every run (Go required).
 
 ## Protocol notes
 

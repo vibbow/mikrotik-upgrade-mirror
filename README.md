@@ -18,10 +18,10 @@ RouterOS 7.17+ 可以通过 Winbox 协议从另一台设备升级（`/system/pac
 | `mirror-upgrade` | 你的电脑 | 读取 Winbox 地址簿，逐台连接路由器，绑定镜像并下载更新包 |
 | `winbox-capture` | 你的电脑 | Winbox 中间人抓包代理，仅用于研究协议，日常不需要 |
 
-**更新镜像：** 双击 `push-mirror.bat`（或运行 `push-mirror.ps1`），它会在你的电脑上下载最新的
+**更新镜像：** 双击 `scripts/push-mirror.bat`（或运行 `scripts/push-mirror.ps1`），它会在你的电脑上下载最新的
 stable 和 long-term 升级包并上传到服务器。
 
-**升级路由器：** 双击 `upgrade-routers.bat`，见下文《批量升级路由器》。
+**升级路由器：** 双击 `scripts/upgrade-routers.bat`，见下文《批量升级路由器》。
 
 ## 路由器怎么选择更新通道
 
@@ -52,13 +52,13 @@ mikrotik-mirror \
 
 ## 推送升级包
 
-`push-mirror.bat` / `push-mirror.ps1` 是对 `mirror-push` 的封装。先修改 `push-mirror.ps1` 顶部
+`scripts/push-mirror.bat` / `scripts/push-mirror.ps1` 是对 `mirror-push` 的封装。先修改 `scripts/push-mirror.ps1` 顶部
 的设置（服务器、用户、远程目录、代理），然后：
 
 ```
-push-mirror.bat              # 两个通道都更新；已经是最新的通道会跳过
-push-mirror.bat -Force       # 强制重新下载并重新上传
-push-mirror.bat -Channels stable
+scripts/push-mirror.bat              # 两个通道都更新；已经是最新的通道会跳过
+scripts/push-mirror.bat -Force       # 强制重新下载并重新上传
+scripts/push-mirror.bat -Channels stable
 ```
 
 也可以直接调用程序：
@@ -122,13 +122,13 @@ add address=<服务器IP> user=stable       ;# 或者 user=longterm
 MAC 地址条目和没有保存登录名的条目会跳过。登录被拒绝后不会重试，避免触发锁定。
 
 ```
-upgrade-routers.bat                              # 双击运行：自动编译，逐台询问
-upgrade-routers.bat -DryRun -Only 192.168.1.1   # 只查看，只处理匹配的条目
-upgrade-routers.bat -Transport rest              # 改用 REST API
+scripts/upgrade-routers.bat                              # 双击运行：自动编译，逐台询问
+scripts/upgrade-routers.bat -DryRun -Only 192.168.1.1   # 只查看，只处理匹配的条目
+scripts/upgrade-routers.bat -Transport rest              # 改用 REST API
 mirror-upgrade.exe --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10 --yes   # 不询问
 ```
 
-使用前修改 `upgrade-routers.ps1` 顶部的设置（地址簿路径、镜像地址）。镜像地址是**路由器**访问镜像
+使用前修改 `scripts/upgrade-routers.ps1` 顶部的设置（地址簿路径、镜像地址）。镜像地址是**路由器**访问镜像
 服务器用的地址。
 
 `winbox-capture` 是中间人代理：让 Winbox 连它，它转发给路由器并把解密后的报文记录下来，用来
@@ -147,7 +147,7 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" \
   -o dist/mikrotik-mirror-linux-amd64 ./cmd/mikrotik-mirror
 ```
 
-`push-mirror.ps1` 和 `upgrade-routers.ps1` 每次运行都会自动重新编译对应的程序（需要安装 Go）。
+`scripts/push-mirror.ps1` 和 `scripts/upgrade-routers.ps1` 每次运行都会自动重新编译对应的程序（需要安装 Go）。
 
 ## 协议说明
 
