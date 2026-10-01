@@ -24,3 +24,6 @@ capture*.txt
 # local Claude Code state (memory holds secrets; settings.local is personal)
 /.claude/memory/
 /.claude/settings.local.json
+
+# personal ignore list for mirror-upgrade (copy scripts/ignore.example.txt)
+/scripts/ignore.txt

@@ -129,6 +129,7 @@ after a `y` it binds, refreshes and downloads by itself.
 - `--dry-run`: look only, never bind or download
 - `--only text`: only entries whose address, note or group contains the text
 - `--list`: list the address book (no passwords) and exit
+- `--ignore-file file` / `--ignore addr1,addr2`: ignore list; these addresses are skipped without connecting
 
 A router listed under several entries (LAN + public address) is recognised by its licence
 system-id and handled once. Entries with a MAC address or no saved login are skipped. A
@@ -142,7 +143,8 @@ mirror-upgrade.exe --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10 
 ```
 
 Edit the settings block at the top of `scripts/upgrade-routers.ps1` first (address book path,
-mirror address). The mirror address is the one the **routers** use to reach the mirror server.
+mirror address). For an ignore list, copy `scripts/ignore.example.txt` to
+`scripts/ignore.txt` (git-ignored); the launcher uses it automatically when it exists. The mirror address is the one the **routers** use to reach the mirror server.
 
 `winbox-capture` is a man-in-the-middle proxy: point Winbox at it, it relays to the router and
 records the decrypted messages, which is how new Winbox operations get decoded (`--dump`

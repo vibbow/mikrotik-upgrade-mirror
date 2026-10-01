@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -25,6 +26,15 @@ import (
 )
 
 func main() {
+	// One Ctrl+C ends the program at once (at an [y/N/q] prompt it is read as a key instead).
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt)
+	go func() {
+		<-sigs
+		fmt.Fprintln(os.Stderr, "\n收到 Ctrl+C，已退出 (正在进行的操作可能没有完成)")
+		os.Exit(130)
+	}()
+
 	var (
 		book         = flag.String("addressbook", "", "Winbox 地址簿 Addresses.cdb 的路径 (默认在常见位置查找)")
 		mirror       = flag.String("mirror", "203.0.113.10", "镜像服务器地址 (路由器访问它用的地址)")
@@ -39,6 +49,8 @@ func main() {
 		transport    = flag.String("transport", "winbox", "连接方式: winbox (地址簿里的 Winbox 端口，经终端执行命令) 或 rest (RouterOS REST API)")
 		dlTime       = flag.Duration("download-timeout", 15*time.Minute, "路由器下载的最长等待时间")
 		list         = flag.Bool("list", false, "只列出地址簿 (不显示密码) 然后退出")
+		ignoreFile   = flag.String("ignore-file", "", "忽略列表文件: 每行一个地址 (# 开头为注释)，列表里的路由器自动跳过")
+		ignoreList   = flag.String("ignore", "", "忽略列表: 逗号分隔的地址，自动跳过")
 	)
 	flag.Parse()
 
@@ -52,6 +64,14 @@ func main() {
 	}
 	fmt.Printf("地址簿: %s (共 %d 条)\n", path, len(entries))
 
+	ignored, err := loadIgnore(*ignoreFile, *ignoreList)
+	if err != nil {
+		fatal(err)
+	}
+	if len(ignored) > 0 {
+		fmt.Printf("忽略列表: %d 个地址\n", len(ignored))
+	}
+
 	var targets []addrbook.Entry
 	seen := map[string]bool{}
 	for _, e := range entries {
@@ -62,6 +82,8 @@ func main() {
 		switch {
 		case e.IsMAC():
 			reason = "MAC 地址条目，跳过"
+		case ignored[strings.ToLower(e.Address)] || ignored[strings.ToLower(e.Host())]:
+			reason = "在忽略列表中，自动跳过"
 		case e.Login == "":
 			reason = "没有保存登录名，跳过"
 		case seen[e.Host()]:
@@ -238,6 +260,30 @@ func (a *asker) ask(q string) bool {
 		return false
 	}
 	fmt.Printf("%s [y/N/q] ", q)
+	for {
+		k, ok, err := readKey()
+		if !ok {
+			break // not a console: read a line instead
+		}
+		if err != nil {
+			a.quit = true
+			fmt.Println()
+			return false
+		}
+		switch strings.ToLower(string(rune(k))) {
+		case "y":
+			fmt.Println("y")
+			return true
+		case "n", "\r", "\n":
+			fmt.Println("n")
+			return false
+		case "q", "\x03": // q, or Ctrl+C (delivered as a key while waiting for an answer)
+			fmt.Println("q")
+			a.quit = true
+			return false
+		}
+		// any other key is ignored
+	}
 	line, err := a.r.ReadString('\n')
 	ans := strings.ToLower(strings.TrimSpace(line))
 	if ans == "q" || ans == "quit" || (err != nil && ans == "") {
@@ -268,4 +314,32 @@ func connect(ctx context.Context, transport string, e addrbook.Entry, timeout ti
 		return c.WithTimeout(timeout), func() {}, nil
 	}
 	return nil, nil, fmt.Errorf("未知的连接方式 %q (可选 winbox / rest)", transport)
+}
+
+// loadIgnore builds the set of addresses to skip from a file (one per line, "#" starts a
+// comment, blank lines ignored) and/or a comma separated list. An entry matches the
+// address book address as typed (host or host:port) or just its host, case-insensitively.
+func loadIgnore(file, list string) (map[string]bool, error) {
+	set := map[string]bool{}
+	add := func(s string) {
+		if i := strings.Index(s, "#"); i >= 0 {
+			s = s[:i]
+		}
+		if s = strings.ToLower(strings.TrimSpace(s)); s != "" {
+			set[s] = true
+		}
+	}
+	if file != "" {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("读取忽略列表失败: %w", err)
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			add(line)
+		}
+	}
+	for _, s := range strings.Split(list, ",") {
+		add(s)
+	}
+	return set, nil
 }

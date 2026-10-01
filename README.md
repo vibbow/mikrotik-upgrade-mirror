@@ -117,6 +117,7 @@ add address=<服务器IP> user=stable       ;# 或者 user=longterm
 - `--dry-run`：只查看，不绑定也不下载
 - `--only 文字`：只处理地址、备注或分组包含这段文字的条目
 - `--list`：只列出地址簿（不显示密码）
+- `--ignore-file 文件` / `--ignore 地址1,地址2`：忽略列表，里面的地址自动跳过、不连接
 
 同一台路由器如果在地址簿里有多个条目（内网 + 公网地址），会通过它的许可证 system-id 识别，只处理一次。
 MAC 地址条目和没有保存登录名的条目会跳过。登录被拒绝后不会重试，避免触发锁定。
@@ -128,7 +129,9 @@ scripts/upgrade-routers.bat -Transport rest              # 改用 REST API
 mirror-upgrade.exe --addressbook C:\path\to\Addresses.cdb --mirror 203.0.113.10 --yes   # 不询问
 ```
 
-使用前修改 `scripts/upgrade-routers.ps1` 顶部的设置（地址簿路径、镜像地址）。镜像地址是**路由器**访问镜像
+使用前修改 `scripts/upgrade-routers.ps1` 顶部的设置（地址簿路径、镜像地址）。
+忽略列表：把 `scripts/ignore.example.txt` 复制为 `scripts/ignore.txt`（已加入 .gitignore，不会提交）并按需修改，
+启动脚本发现这个文件就会自动使用。镜像地址是**路由器**访问镜像
 服务器用的地址。
 
 `winbox-capture` 是中间人代理：让 Winbox 连它，它转发给路由器并把解密后的报文记录下来，用来

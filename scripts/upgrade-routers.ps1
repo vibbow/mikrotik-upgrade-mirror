@@ -30,6 +30,7 @@ $ErrorActionPreference = 'Stop'
 $Config = @{
     AddressBook = 'C:\path\to\Addresses.cdb'
     Mirror      = '203.0.113.10'    # the mirror's address as the ROUTERS reach it
+    IgnoreFile  = 'scripts\ignore.txt'   # routers listed here are skipped (copy scripts\ignore.example.txt)
 }
 # --------------------------------------------------------------------------------------
 
@@ -56,6 +57,8 @@ if ($DryRun)      { $argsList += '--dry-run' }
 if ($Yes)         { $argsList += '--yes' }
 if ($List)        { $argsList += '--list' }
 if ($ConfirmSteps) { $argsList += '--confirm-steps' }
+$ignorePath = Join-Path $Root $Config.IgnoreFile
+if (Test-Path $ignorePath) { $argsList += @('--ignore-file', $ignorePath) }
 $argsList += @('--transport', $Transport)
 
 & $exe @argsList
