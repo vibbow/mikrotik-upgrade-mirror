@@ -139,7 +139,38 @@ func Router(ctx context.Context, c routeros.Backend, o Options) Result {
 	if !o.Apply {
 		r.Status = Planned
 		if bound {
-			steps = append(steps, "已绑定; 将刷新并下载更新的包")
+			steps = append(steps, "已绑定")
+		} else {
+			steps = append(steps, fmt.Sprintf("将绑定 %s (用户 %q)", o.Mirror, acct.User))
+		}
+		// The local-update list on the router is cached: refresh once against the mirror
+		// before looking, otherwise we report whatever the last refresh happened to see.
+		if bound {
+			if err := c.Refresh(ctx); err != nil {
+				return fail(&r, "刷新失败: %v", err)
+			}
+			offered, err := listOffered(ctx, c)
+			if err != nil {
+				return fail(&r, "读取镜像包列表失败: %v", err)
+			}
+			installed, err := c.Installed(ctx)
+			if err != nil {
+				return fail(&r, "读取已安装的包失败: %v", err)
+			}
+			if installed["routeros"] {
+				installed["system"] = true
+			}
+			var names []string
+			for _, p := range offered {
+				if strings.EqualFold(p["status"], "available") && installed[p["name"]] {
+					names = append(names, p["name"]+" "+p["version"])
+				}
+			}
+			if len(names) > 0 {
+				steps = append(steps, "镜像上有更新: "+strings.Join(names, ", "))
+			} else {
+				steps = append(steps, fmt.Sprintf("镜像上没有已启用包的更新 (共 %d 个包)", len(offered)))
+			}
 		} else {
 			steps = append(steps, "然后刷新并下载更新的包")
 		}
