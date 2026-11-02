@@ -160,6 +160,11 @@ func Router(ctx context.Context, c routeros.Backend, o Options) Result {
 	if err != nil {
 		return fail(&r, "读取已安装的包失败: %v", err)
 	}
+	// The mirror offers the main package as "system" (the name in its npk header), but
+	// the router lists it as "routeros" among installed packages.
+	if installed["routeros"] {
+		installed["system"] = true
+	}
 	var ids, names []string
 	for _, p := range offered {
 		if strings.EqualFold(p["status"], "available") && installed[p["name"]] {
